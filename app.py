@@ -86,19 +86,27 @@ def decode_metar(metar_text):
     visibility = "Unknown"
     for i in range(start_index + 2, len(parts)):
         part = parts[i]
-        if re.match(r'^\d{4}$', part):
+        # Handle visibility in meters
+        if re.match(r'^\d{4}$', part) and int(part) < 9999:
             # Meters visibility
             meters = int(part)
             miles = meters / 1609.34
             visibility = f"{miles:.1f} miles"
             break
-        elif re.match(r'^\d/\d(?:SM)?$', part) or re.match(r'^\d(?:\s\d/\d)?SM$', part):
+        # Handle fractional visibility in statute miles
+        elif re.match(r'^\d/\d(?:SM)?$', part):
             if part.endswith("SM"):
                 # Statute miles
                 vis_value = part[:-2]
                 visibility = f"{vis_value} statute miles"
             else:
                 visibility = f"{part} statute miles"
+            break
+        # Handle whole number or mixed number visibility
+        elif re.match(r'^\d+(?:\s\d/\d)?SM$', part):
+            # Statute miles
+            vis_value = part[:-2]
+            visibility = f"{vis_value} statute miles"
             break
         elif part == "CAVOK":
             visibility = "Greater than 6 statute miles (Cloud and Visibility OK)"
@@ -141,34 +149,53 @@ def decode_metar(metar_text):
         'SS': 'Sandstorm'
     }
     
+    # Look for weather condition codes in the METAR
     for i in range(start_index + 2, len(parts)):
         part = parts[i]
-        # Skip if this is a weather code
-        if any(code in part for code in weather_codes if len(code) >= 2 and code in ['RA', 'SN', 'DZ', 'FG', 'BR', 'TS', 'SH']):
-            conditions = []
-            # Check for intensity modifier
-            if part.startswith('-'):
-                conditions.append('Light')
-                part = part[1:]
-            elif part.startswith('+'):
-                conditions.append('Heavy')
-                part = part[1:]
+        # Skip parts that are clearly not weather codes
+        if re.match(r'^\d{3}\d{2}(?:G\d{2})?(?:KT|MPS|KMH)$', part) or \
+           re.match(r'^\d{4}$', part) or \
+           re.match(r'^\d+SM$', part) or \
+           part.startswith('A') or part.startswith('Q') or \
+           '/' in part:
+            continue
             
-            # Process the rest of the part
-            while part:
-                found = False
-                # Check for 2-character codes
-                for code in sorted(weather_codes.keys(), key=len, reverse=True):
-                    if part.startswith(code) and len(code) >= 2:
-                        conditions.append(weather_codes[code])
-                        part = part[len(code):]
+        # Check if this part contains weather codes
+        matched_conditions = []
+        temp_part = part
+        
+        # Handle intensity modifiers
+        if temp_part.startswith('-'):
+            matched_conditions.append('Light')
+            temp_part = temp_part[1:]
+        elif temp_part.startswith('+'):
+            matched_conditions.append('Heavy')
+            temp_part = temp_part[1:]
+        
+        # Process weather codes
+        while temp_part:
+            found = False
+            # Try to match longer codes first
+            for length in [4, 3, 2]:
+                if len(temp_part) >= length:
+                    code = temp_part[:length]
+                    if code in weather_codes:
+                        matched_conditions.append(weather_codes[code])
+                        temp_part = temp_part[length:]
                         found = True
                         break
-                if not found:
-                    break
-            
-            if conditions:
-                weather_conditions.append(' '.join(conditions))
+            if not found and len(temp_part) >= 2:
+                code = temp_part[:2]
+                if code in weather_codes:
+                    matched_conditions.append(weather_codes[code])
+                    temp_part = temp_part[2:]
+                    found = True
+            if not found:
+                # Skip unrecognized characters
+                temp_part = temp_part[1:] if temp_part else ""
+        
+        if matched_conditions:
+            weather_conditions.append(' '.join(matched_conditions))
     
     # Extract sky conditions
     sky_conditions = []
@@ -278,6 +305,10 @@ def decode_metar(metar_text):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'healthy'}), 200
 
 @app.route('/metar', methods=['POST'])
 def get_metar():
