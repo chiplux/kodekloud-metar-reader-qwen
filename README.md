@@ -110,6 +110,18 @@ make size       # Show Docker image sizes
 make help       # Show all available commands
 ```
 
+### Development vs Production Images
+
+The project uses separate Docker images for development and production:
+
+- **Development image** (`Dockerfile.dev`): Includes test files and development dependencies
+- **Production image** (`Dockerfile`): Excludes test files and only includes runtime dependencies
+
+This separation ensures that:
+1. Production images are smaller and more secure
+2. Development images include everything needed for testing and debugging
+3. Tests can be run in Docker containers using the development image
+
 ## Docker Compose
 
 You can also use Docker Compose for development:
@@ -188,6 +200,17 @@ Altimeter 29.87 inches of mercury
 
 ## Testing
 
+This project includes a comprehensive test suite to ensure the METAR decoding functionality works correctly. The tests use pytest and include:
+
+- Tests for all compass wind directions (North, Northeast, East, Southeast, South, Southwest, West, Northwest)
+- Tests for various visibility formats (statute miles, fractional miles, meters, CAVOK)
+- Tests for different weather conditions (rain, thunderstorms, snow, fog, mist, etc.)
+- Tests for sky conditions (few, scattered, broken, overcast clouds at various altitudes)
+- Tests for temperature and dewpoint decoding, including negative values
+- Tests for altimeter pressure decoding in both inches of mercury and hectopascals
+- Tests for edge cases and error conditions
+- Mocked tests for the HTTP API calls to avoid external dependencies during testing
+
 Run unit tests with:
 ```
 make test-dev
@@ -197,6 +220,38 @@ Or directly with pytest:
 ```
 python -m pytest tests/ -v
 ```
+
+### Test Coverage
+
+The test suite thoroughly validates the `decode_metar()` function with realistic METAR data, ensuring that:
+
+1. Wind information is correctly parsed and converted to compass directions
+2. Visibility conditions are properly interpreted
+3. Weather phenomena are accurately decoded
+4. Sky conditions and cloud cover are correctly reported
+5. Temperature and dewpoint values are properly extracted
+6. Atmospheric pressure readings are correctly formatted
+7. Error conditions are handled gracefully
+
+### Running Tests in a Virtual Environment
+
+To run tests locally with a virtual environment:
+
+```bash
+# Create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run the tests
+python -m pytest tests/ -v
+```
+
+### Continuous Integration
+
+The test suite is designed to be run automatically in CI/CD pipelines and can be integrated with tools like GitHub Actions for automated testing on every commit.
 
 ## Contributing
 

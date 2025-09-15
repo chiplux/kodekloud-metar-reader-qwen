@@ -1,7 +1,7 @@
 # Development Dockerfile with testing dependencies
 
 # Stage 1: Builder stage
-FROM python:3.9-alpine as builder
+FROM python:3.9-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache \

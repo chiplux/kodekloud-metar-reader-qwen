@@ -133,7 +133,3 @@ celerybeat.pid
 tags
 TAGS
 cscope.*
-# Ignore test files in production
-tests/
-test_*.py
-*_test.py

@@ -33,6 +33,9 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY . .
 
+# Remove test files for production image
+RUN rm -rf tests/ test_*.py *_test.py
+
 # Change ownership to non-root user
 RUN chown -R 1001:1001 /app
 
